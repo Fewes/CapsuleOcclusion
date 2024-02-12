@@ -20,9 +20,9 @@ Clustering can be performed using either a naive compute shader or a single rast
 * Shader model 4.5 (only required for rasterization path)
 
 # Areas of improvement
-* Cone shadows could be implemented fairly easily. I chose not to do this because the overdraw ends up being a limiting factor and running it in full resolution with MSAA might be unrealistic.
-* The linked list used for the clusters must have a max size (set by the ```Cluster Data Headroom``` parameter). If the number of cluster hits exceeds the list capacity, rendering bugs occur. It would be possible to detect when/before this happens using async readback operations and dynamically expand the list.
-* Currently, the capsules are culled and sorted on the main thread for each camera. The code has been optimized a fair bit but still, it would be preferable to do this in a job.
+* Cone shadows could be implemented fairly easily. I chose not to do this because overdraw ends up being a limiting factor and running it in full resolution with MSAA might be unrealistic. It also increases the number of parameters and a cone direction must be selected somehow.
+* The linked list used for the clusters must have a max size (set by the ```Cluster Data Headroom``` parameter). If the number of cluster hits exceeds the list capacity, rendering bugs occur. It would be possible to detect when or just before this happens using async readback operations and dynamically expand the list.
+* Currently, the capsules are culled and sorted per-camera on the main thread. The code has been optimized a fair bit but still, it would be preferable to do this in a job or similar.
 * The cluster data is stored in an unsorted linked list, which likely results in poor cache performance. Bitonic sorting or similar could be used to improve this but was not implemented due to its high complexity.
 
 # Acknowledgements
