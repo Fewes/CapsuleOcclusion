@@ -33,5 +33,8 @@ Capsule intersection and occlusion approximation functions by Inigo Quilez:
 Capsule-capsule collision function (used for compute clustering) by Noah Zuo:
 * https://arrowinmyknee.com/2021/03/15/some-math-about-capsule-collision/
 
+Low Poly Soldiers Demo used for screenshot by Polygon Blacksmith:
+* https://assetstore.unity.com/packages/3d/characters/low-poly-soldiers-demo-73611
+
 [^1]: Lighting Technology of "The Last Of Us" - http://miciwan.com/SIGGRAPH2013/Lighting%20Technology%20of%20The%20Last%20Of%20Us.pdf
 [^2]: Rendering of Shadow Warrior 2 - https://knarkowicz.files.wordpress.com/2017/05/knarkowicz_rendering_sw2_dd_20171.pdf
