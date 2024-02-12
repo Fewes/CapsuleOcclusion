@@ -7,7 +7,7 @@ A Unity package implementing capsule/character occlusion as seen in The Last Of 
 
 To speed up rendering, capsules are gathered in clusters (implemented as a linked list on the GPU) which are used to limit per-pixel occlusion evaluation.
 
-The clustering can be performed using either a naive compute shader or a single rasterization pass (which is the faster and preferred method).
+Clustering can be performed using either a naive compute shader or a single rasterization pass (which is the faster and preferred method).
 
 # How do I use it?
 1. Add the package to your project either using the Package Manager (Add package from GIT url...) or by manually placing it in your project's Packages folder (embedded package).
