@@ -1,0 +1,11 @@
+{
+  "name": "dev.fewes.capsuleocclusion",
+  "displayName": "Capsule Occlusion",
+  "version": "0.1.0",
+  "author": {
+    "name": "Felix Westin",
+    "url": "https://fewes.se/"
+  },
+  "unity": "2021.3",
+  "description": "Clustered capsule occlusion implementation."
+}

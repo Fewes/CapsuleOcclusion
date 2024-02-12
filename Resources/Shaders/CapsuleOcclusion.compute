@@ -1,0 +1,61 @@
+#pragma kernel ResetClusters
+#pragma kernel UpdateClusters
+#pragma kernel MergeData
+
+RWTexture3D<uint> _ClustersCount;
+RWTexture3D<uint> _ClustersPointer;
+RWTexture3D<uint2> _Clusters;
+RWStructuredBuffer<uint2> _ClusterData;
+RWStructuredBuffer<uint> _Counter;
+
+#include "../../Shaders/CapsuleOcclusionBuildClusters.hlsl"
+
+[numthreads(8, 8, 8)]
+void ResetClusters(uint3 id : SV_DispatchThreadID)
+{
+	_ClustersPointer[id] = UINT_MAX;
+	_ClustersCount[id] = 0;
+}
+
+[numthreads(8, 8, 8)]
+void UpdateClusters(uint3 id : SV_DispatchThreadID)
+{
+	if (any(id >= _ClusterSize))
+	{
+		return;
+	}
+
+	// Capsule representing this froxel
+	float3 froxelPoint1 = ClusterPosToWorld(id.xyz + float3(0.5, 0.5, 0.0));
+	float3 froxelPoint2 = ClusterPosToWorld(id.xyz + float3(0.5, 0.5, 1.0));
+	float3 position_RU = ClusterPosToWorld(id.xyz + float3(1.0, 1.0, 1.0));
+	float froxelRadius = length(position_RU - froxelPoint2);
+
+	uint count = 0;
+	uint pointer = UINT_MAX;
+	for (int i = 0; i < _CapsuleCount; i++)
+	{
+		float4 param1 = _CapsuleParams1[i];
+		float4 param2 = _CapsuleParams2[i];
+		float d = LineSegmentDistSq(froxelPoint1, froxelPoint2, param1.xyz, param2.xyz);
+		float rs = param1.w + param2.w + froxelRadius;
+		if (d < rs*rs)
+		{
+			WriteCapsuleToCluster(id, i);
+		}
+	}
+}
+
+[numthreads(8, 8, 8)]
+void MergeData(uint3 id : SV_DispatchThreadID)
+{
+	if (any(id >= _ClusterSize))
+	{
+		return;
+	}
+
+	uint pointer = _ClustersPointer[id];
+	uint count = _ClustersCount[id];
+
+	_Clusters[id] = uint2(count, pointer);
+}
