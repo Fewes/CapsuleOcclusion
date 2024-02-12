@@ -3,7 +3,7 @@
 ![Top to bottom:Shaded view, ambient only, capsule/cluster debug view](CapsuleOcclusion.gif)
 
 # What is this?
-A Unity package implementing capsule occlusion as seen in The Last Of Us[^1], Shadow Warrior 2[^2] and others. It is mainly intended to be used in forward rendering pipelines with MSAA (where SSAO is not viable).
+A Unity package implementing capsule/character occlusion as seen in The Last Of Us[^1], Shadow Warrior 2[^2] and others. It is mainly intended to be used in forward rendering pipelines with MSAA (where SSAO is not viable).
 
 To speed up rendering, capsules are gathered in clusters (implemented as a linked list on the GPU) which are used to limit per-pixel occlusion evaluation.
 
@@ -14,6 +14,10 @@ The clustering can be performed using either a naive compute shader or a single 
 2. Add a ```CapsuleOcclusionCamera``` component to your camera.
 3. In your shader, add ```#include "Packages/dev.fewes.capsuleocclusion/Shaders/CapsuleOcclusion.hlsl"```
 4. In your shader, evaluate occlusion using the function ```GetCapsuleOcclusion(worldPos, worldNormal, screenUV, linear01Depth);```
+
+# Requirements
+* Compute shaders
+* Shader model 4.5 (only required for rasterization path)
 
 # Areas of improvement
 * Cone shadows could be implemented fairly easily. I chose not to do this because the overdraw ends up being a limiting factor and running it in full resolution with MSAA might be unrealistic.
