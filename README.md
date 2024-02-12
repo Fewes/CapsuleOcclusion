@@ -22,7 +22,12 @@ The clustering can be performed using either a naive compute shader or a single 
 * The cluster data is stored in an unsorted linked list, which likely results in poor cache performance. Bitonic sorting or similar could be used to improve this but was not implemented due to its high complexity.
 
 # Acknowledgements
-Original capsule occlusion approximation function by Inigo Quilez: https://www.shadertoy.com/view/llGyzG
+Capsule intersection and occlusion approximation functions by Inigo Quilez:
+* https://iquilezles.org/articles/intersectors/
+* https://www.shadertoy.com/view/llGyzG
+
+Capsule-capsule collision function (used for compute clustering) by Noah Zuo:
+* https://arrowinmyknee.com/2021/03/15/some-math-about-capsule-collision/
 
 [^1]: Lighting Technology of "The Last Of Us" - http://miciwan.com/SIGGRAPH2013/Lighting%20Technology%20of%20The%20Last%20Of%20Us.pdf
 [^2]: Rendering of Shadow Warrior 2 - https://knarkowicz.files.wordpress.com/2017/05/knarkowicz_rendering_sw2_dd_20171.pdf
