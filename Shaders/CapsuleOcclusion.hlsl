@@ -10,9 +10,9 @@ StructuredBuffer<uint2> _CapsuleClusterData;
 
 float _CapsuleOcclusionIntensity;
 
-#define CalcOcclusionCapsule capOcclusionFast2
+#define CalcOcclusionCapsule capOcclusionFast
 
-float __smooth(float x) { return x * x * (3.0 - 2.0 * x); }
+float _smooth(float x) { return x * x * (3.0 - 2.0 * x); }
 
 float capOcclusionFast(float3 p, float3 n, float3 a, float3 b, float r, float maxD)
 {
@@ -24,25 +24,8 @@ float capOcclusionFast(float3 p, float3 n, float3 a, float3 b, float r, float ma
     float l = dot(d,d);
     float o = -dot(d,n)*r2*r/(l*l);
     // Max dist
-    o *= 1.0 - (l-r2)/(maxD*maxD);
-    o = 1.0 - saturate(o);
-    return o*o;
-}
-
-float capOcclusionFast2(float3 p, float3 n, float3 a, float3 b, float r, float maxD)
-{
-    float r2 = r*r;
-    // Original function but in ^2 space
-    float3 ba = b - a, pa = p - a;
-    float h = saturate(dot(pa,ba)/dot(ba,ba));
-    float3 d = pa - h*ba;
-    float l = dot(d,d);
-    float o = -dot(d,n)*r2*r/(l*l);
-    // Max dist
-    o *= __smooth(saturate(1.0 - (l-r2)/(maxD*maxD)));
+    o *= _smooth(saturate(1.0 - (l-r2)/(maxD*maxD)));
 	return saturate(o);
-    // o = 1.0 - saturate(o);
-    // return o*o;
 }
 
 float capOcclusion(float3 p, float3 n, float3 a, float3 b, float r, float maxD)
@@ -61,7 +44,6 @@ float capOcclusion(float3 p, float3 n, float3 a, float3 b, float r, float maxD)
 float GetCapsuleOcclusion(float3 positionWS, float3 normalWS, float2 uv, float linearDepth)
 {
 	uint3 clusterPos = GetClusterPos(uv, linearDepth);
-	// uint clusterID = ClusterPosToIndex(clusterPos);
 
 	float occlusion = 0.0;
 
@@ -85,7 +67,7 @@ float GetCapsuleOcclusion(float3 positionWS, float3 normalWS, float2 uv, float l
 
 float3 GetHeatColorBand(float3 col, float x, float y)
 {
-    return col * __smooth(saturate(1.0 - abs(x - y) * 4.0));
+    return col * _smooth(saturate(1.0 - abs(x - y) * 4.0));
 }
 float3 GetHeatColor(float x)
 {
@@ -100,7 +82,6 @@ float3 GetCapsuleOcclusionDebugColor(float3 positionWS, float3 normalWS, float2 
 {
 	float occlusion = GetCapsuleOcclusion(positionWS, normalWS, uv, linearDepth);
 	uint3 clusterPos = GetClusterPos(uv, linearDepth);
-	// uint clusterID = ClusterPosToIndex(clusterPos);
 	uint2 cluster = _CapsuleClusters[clusterPos];
 	float3 heat = GetHeatColor(1.0 - exp(-(float)cluster.x / 10));
 	return (normalWS.y * 0.25 + 0.75) * heat * occlusion;

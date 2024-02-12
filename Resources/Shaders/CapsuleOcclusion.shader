@@ -4,6 +4,8 @@ Shader "Hidden/CapsuleOcclusion"
 	{
 		Pass
 		{
+			Name "Clustering"
+			
 			Cull Front
 			ZWrite Off
 			ZTest Always
@@ -87,7 +89,7 @@ Shader "Hidden/CapsuleOcclusion"
 				o.positionWS = mul(v.vertex.xyz, rot) + (o.params1.xyz + o.params2.xyz) * 0.5;
 
 				o.vertex = mul(UNITY_MATRIX_VP, float4(o.positionWS, 1));
-				o.vertex += UnityObjectToClipPos(v.vertex) * 1e-20; // TODO: Some instancing quirk requires us to call UnityObjectToClipPos.
+				o.vertex += UnityObjectToClipPos(v.vertex) * 1e-20; // TODO: Some instancing quirk requires us to call UnityObjectToClipPos
 				o.screenPos = ComputeScreenPos(o.vertex);
 
 				o.capsuleID = instanceID;
@@ -134,9 +136,7 @@ Shader "Hidden/CapsuleOcclusion"
 
 		Pass
 		{
-			// Cull Back
-			// ZWrite Off
-			// ZTest Always
+			Name "Visualization"
 
 			HLSLPROGRAM
 			#pragma vertex vert

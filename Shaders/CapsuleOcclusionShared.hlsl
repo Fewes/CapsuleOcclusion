@@ -9,11 +9,11 @@ int _CapsuleCount;
 uint3 _ClusterSize;
 float _DepthToRange;
 
+// Note that these are not actually used, but would be if clusters were stored in a 1D structure instead of 3D.
 uint ClusterPosToIndex(uint3 pos)
 {
 	return (pos.z * _ClusterSize.x * _ClusterSize.y) + (pos.y * _ClusterSize.x) + pos.x;
 }
-
 uint3 ClusterIndexToPos(uint id)
 {
 	uint z = id / (_ClusterSize.x * _ClusterSize.y);
