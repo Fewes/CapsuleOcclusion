@@ -5,6 +5,8 @@
 # What is this?
 A Unity package implementing capsule/character occlusion as seen in The Last Of Us[^1], Shadow Warrior 2[^2] and others. It is mainly intended to be used in forward rendering pipelines with MSAA (where SSAO is not viable).
 
+Unlike other implementations I've seen, this one supports fairly robust self-occlusion based on the normal direction, which means you can evaluate it for the caster mesh as well.
+
 To speed up rendering, capsules are gathered in clusters (implemented as a linked list on the GPU) which are used to limit per-pixel occlusion evaluation.
 
 Clustering can be performed using either a naive compute shader or a single rasterization pass (which is the faster and preferred method).
