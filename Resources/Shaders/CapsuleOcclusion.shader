@@ -5,7 +5,7 @@ Shader "Hidden/CapsuleOcclusion"
 		Pass
 		{
 			Name "Clustering"
-			
+
 			Cull Front
 			ZWrite Off
 			ZTest Always
@@ -89,7 +89,11 @@ Shader "Hidden/CapsuleOcclusion"
 				o.positionWS = mul(v.vertex.xyz, rot) + (o.params1.xyz + o.params2.xyz) * 0.5;
 
 				o.vertex = mul(UNITY_MATRIX_VP, float4(o.positionWS, 1));
-				o.vertex += UnityObjectToClipPos(v.vertex) * 1e-20; // TODO: Some instancing quirk requires us to call UnityObjectToClipPos
+				// TODO:
+				// To save on CPU time, we skip matrix calculation and instead use the rotation matrix above calculated here in the shader.
+				// There seems to be some quirk with Unity instancing though where unless we call UnityObjectToClipPos (and include it in the result so the compiler doesn't strip it),
+				// the output is trashed (the draw call is skipped). Because of this we include it here but multiply it with a really small number to make it insignificant.
+				o.vertex += UnityObjectToClipPos(v.vertex) * 1e-20;
 				o.screenPos = ComputeScreenPos(o.vertex);
 
 				o.capsuleID = instanceID;
