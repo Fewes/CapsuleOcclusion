@@ -31,7 +31,6 @@ namespace CapsuleOcclusion
 		private static int s_visibleCapsuleCount;
 		private static Plane[] s_frustumPlanes = new Plane[6];
 		private static List<OcclusionCapsule> s_visibleCapsules = new List<OcclusionCapsule>();
-		// Note that this is just a dummy. Matrices are calculated on the fly in the vertex shader to save CPU time.
 		private static Matrix4x4[] s_matrices = new Matrix4x4[MAX_CAPSULE_COUNT];
 		private static Vector4[] s_capsuleParams1 = new Vector4[MAX_CAPSULE_COUNT];
 		private static Vector4[] s_capsuleParams2 = new Vector4[MAX_CAPSULE_COUNT];
@@ -93,6 +92,7 @@ namespace CapsuleOcclusion
 				param1.w = capsule.radius;
 				Vector4 param2 = capsule.m_cachedPoint2;
 				param2.w = capsule.radius * rangeMultiplier;
+				// Note that we omit this for performance. Matrices are calculated on the fly in the vertex shader instead.
 				//s_matrices[s_visibleCapsuleCount] = Matrix4x4.TRS(capsule.transform.position, capsule.transform.rotation, Vector3.one);
 				s_capsuleParams1[s_visibleCapsuleCount] = param1;
 				s_capsuleParams2[s_visibleCapsuleCount] = param2;
