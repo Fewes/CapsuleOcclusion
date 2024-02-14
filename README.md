@@ -15,7 +15,7 @@ Clustering can be performed using either a naive compute shader or a single rast
 1. Add the package to your project either using the Package Manager (Add package from GIT url...) or by manually placing it in your project's Packages folder (embedded package).
 2. In your scene or prefab, add one or more ```OcclusionCapsule``` components.
 3. Add a ```CapsuleOcclusionCamera``` component to your camera.
-4. In your shader, add ```#include "Packages/dev.fewes.capsuleocclusion/Shaders/CapsuleOcclusion.hlsl"```
+4. In your shader, add ```#include "Packages/se.fewes.capsuleocclusion/Shaders/CapsuleOcclusion.hlsl"```
 5. In your shader, evaluate occlusion using the function ```GetCapsuleOcclusion(worldPos, worldNormal, screenUV, linear01Depth);```
 
 # Requirements
