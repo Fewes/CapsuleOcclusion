@@ -251,6 +251,11 @@ namespace CapsuleOcclusion
 			GUILayout.EndHorizontal();
 
 			GUILayout.BeginHorizontal();
+			EditorGUILayout.LabelField("Active Capsules", GUILayout.Width(EditorGUIUtility.labelWidth));
+			EditorGUILayout.LabelField(OcclusionCapsule.instances.Count.ToString());
+			GUILayout.EndHorizontal();
+
+			GUILayout.BeginHorizontal();
 			EditorGUILayout.LabelField("Visible Capsules", GUILayout.Width(EditorGUIUtility.labelWidth));
 			EditorGUILayout.LabelField(OcclusionCapsule.visibleCapsuleCount.ToString());
 			GUILayout.EndHorizontal();
