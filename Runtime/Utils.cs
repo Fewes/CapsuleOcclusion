@@ -115,7 +115,7 @@ namespace CapsuleOcclusion
 
 		public static void LazyGetComponent<T>(this GameObject gameObject, ref T component)
 		{
-			if (component == null)
+			if (component == null || component.Equals(null))
 			{
 				gameObject.TryGetComponent<T>(out component);
 			}

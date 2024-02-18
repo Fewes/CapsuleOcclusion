@@ -51,8 +51,11 @@ namespace CapsuleOcclusion
 
 		[Space(10)]
 
+		public bool burst = true;
+
+		[Space(10)]
+
 		public bool showCapsules = false;
-		public bool debugBounds = false;
 		public bool debugClusters = false;
 
 		private Camera m_camera;
@@ -113,7 +116,7 @@ namespace CapsuleOcclusion
 
 			LazyInitialize();
 
-			OcclusionCapsule.UpdateCapsuleDataForCamera(m_camera, maxCapsuleCount, capsuleRangeMultiplier, cullCapsules, sortCapsules);
+			OcclusionCapsule.UpdateCapsuleDataForCamera(m_camera, maxCapsuleCount, capsuleRangeMultiplier, cullCapsules, sortCapsules, burst);
 
 			if (updateClusters)
 			{
@@ -215,20 +218,6 @@ namespace CapsuleOcclusion
 		private void Update()
 		{
 			// Dummy
-		}
-
-		private void OnDrawGizmos()
-		{
-			if (!debugBounds)
-			{
-				return;
-			}
-
-			for (int i = 0; i < OcclusionCapsule.instances.Count; i++)
-			{
-				OcclusionCapsule capsule = OcclusionCapsule.instances[i];
-				capsule.DrawBoundsGizmo();
-			}
 		}
 	}
 

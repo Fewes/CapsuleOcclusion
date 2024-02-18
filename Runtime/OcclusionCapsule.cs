@@ -3,15 +3,21 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Profiling;
 using UnityEngine.Rendering;
+using Unity.Collections;
+using Unity.Burst;
+using Unity.Mathematics;
+using Unity.Jobs;
+using UnityEngine.Jobs;
 
 namespace CapsuleOcclusion
 {
-	[ExecuteInEditMode]
+	[ExecuteInEditMode, BurstCompile]
 	public class OcclusionCapsule : MonoBehaviour
 	{
 		public const int MAX_CAPSULE_COUNT = 512;
 
 		public static List<OcclusionCapsule> instances = new List<OcclusionCapsule>();
+		public static List<Transform> instanceTransforms = new List<Transform>();
 		public static int visibleCapsuleCount => s_visibleCapsuleCount;
 
 		[Min(0)]
@@ -22,6 +28,7 @@ namespace CapsuleOcclusion
 		public Vector3 point1 => transform.TransformPoint(new Vector3(0, 0, -size / 2));
 		public Vector3 point2 => transform.TransformPoint(new Vector3(0, 0, size / 2));
 
+		private Transform m_cachedTransform;
 		private Vector3 m_cachedPoint1;
 		private Vector3 m_cachedPoint2;
 		private float m_cachedRadiusSum;
@@ -35,71 +42,151 @@ namespace CapsuleOcclusion
 		private static Vector4[] s_capsuleParams1 = new Vector4[MAX_CAPSULE_COUNT];
 		private static Vector4[] s_capsuleParams2 = new Vector4[MAX_CAPSULE_COUNT];
 
-		public static void UpdateCapsuleDataForCamera(Camera camera, int maxCount, float rangeMultiplier, bool cull, bool sort)
+		public static void UpdateCapsuleDataForCamera(Camera camera, int maxCount, float rangeMultiplier, bool cull, bool sort, bool burst)
 		{
-			CacheDataForCamera(camera, rangeMultiplier);
+			float3 cameraPosition = camera.transform.position;
 
 			int count;
 
 			// Hack bug fix (strange results if maxCount >= 512 for some reason)
 			maxCount = Mathf.Min(maxCount, MAX_CAPSULE_COUNT - 1);
 
-			s_visibleCapsules.Clear();
-			if (cull)
+			if (burst)
 			{
-				Profiler.BeginSample("Capsule Occlusion Culling");
+				int instanceCount = instances.Count;
+				NativeArray<Matrix4x4> localToWorld = new NativeArray<Matrix4x4>(instanceCount, Allocator.TempJob);
+				NativeArray<float> size = new NativeArray<float>(instanceCount, Allocator.TempJob);
+				NativeArray<float> radius = new NativeArray<float>(instanceCount, Allocator.TempJob);
+				NativeArray<float3> point1 = new NativeArray<float3>(instanceCount, Allocator.TempJob);
+				NativeArray<float3> point2 = new NativeArray<float3>(instanceCount, Allocator.TempJob);
+				for (int i = 0; i < instanceCount; i++)
+				{
+					var capsule = instances[i];
+					localToWorld[i] = capsule.m_cachedTransform.localToWorldMatrix;
+					size[i] = capsule.size;
+					radius[i] = capsule.radius;
+				}
+				CacheJob cacheJob = new CacheJob()
+				{
+					rangeMultiplier = rangeMultiplier,
+					localToWorld = localToWorld,
+					size = size,
+					point1 = point1,
+					point2 = point2
+				};
+				cacheJob.Schedule(instanceCount, 1).Complete();
+
+				NativeArray<Plane> frustum = new NativeArray<Plane>(6, Allocator.TempJob);
 				GeometryUtility.CalculateFrustumPlanes(camera, s_frustumPlanes);
-				count = instances.Count;
-				for (int i = 0; i < count; i++)
+				for (int i = 0; i < 6; i++)
+				{
+					frustum[i] = s_frustumPlanes[i];
+				}
+
+				NativeArray<SortData> sortData = new NativeArray<SortData>(instances.Count, Allocator.TempJob);
+				for (int i = 0; i < instances.Count; i++)
 				{
 					OcclusionCapsule capsule = instances[i];
-					if (GeometryUtility.TestPlanesAABB(s_frustumPlanes, capsule.m_cachedBounds))
+					sortData[i] = new SortData()
 					{
-						s_visibleCapsules.Add(capsule);
+						index = i,
+						sortKey = -1
+					};
+				}
+				SortCapsules(ref sortData, ref frustum, ref cameraPosition, ref rangeMultiplier, ref point1, ref point2, ref radius);
+
+				s_visibleCapsuleCount = 0;
+				int minMaxCount = Mathf.Min(maxCount, MAX_CAPSULE_COUNT);
+				for (int i = 0; i < sortData.Length && s_visibleCapsuleCount < minMaxCount; i++)
+				{
+					SortData d = sortData[i];
+					if (d.sortKey == float.PositiveInfinity)
+					{
+						break;
+					}
+					else
+					{
+						int j = d.index;
+						float _radius = radius[j];
+						float4 param1 = new float4(point1[j], _radius);
+						float4 param2 = new float4(point2[j], _radius * rangeMultiplier);
+						// Note that we omit this for performance. Matrices are calculated on the fly in the vertex shader instead.
+						//s_matrices[s_visibleCapsuleCount] = Matrix4x4.TRS(capsule.transform.position, capsule.transform.rotation, Vector3.one);
+						s_capsuleParams1[s_visibleCapsuleCount] = param1;
+						s_capsuleParams2[s_visibleCapsuleCount] = param2;
+
+						s_visibleCapsuleCount++;
 					}
 				}
-				Profiler.EndSample();
+
+				localToWorld.Dispose();
+				size.Dispose();
+				radius.Dispose();
+				point1.Dispose();
+				point2.Dispose();
+				frustum.Dispose();
+				sortData.Dispose();
 			}
 			else
 			{
-				s_visibleCapsules.AddRange(instances);
-			}
+				CacheDataForCamera(camera, rangeMultiplier);
 
-			if (sort)
-			{
-				Profiler.BeginSample("Capsule Occlusion Sorting");
-				Vector3 cameraPosition = camera.transform.position;
-				Vector3 cameraPosition2 = cameraPosition * 2;
+				s_visibleCapsules.Clear();
+				if (cull)
+				{
+					Profiler.BeginSample("Capsule Occlusion Culling");
+					GeometryUtility.CalculateFrustumPlanes(camera, s_frustumPlanes);
+					count = instances.Count;
+					for (int i = 0; i < count; i++)
+					{
+						OcclusionCapsule capsule = instances[i];
+						if (GeometryUtility.TestPlanesAABB(s_frustumPlanes, capsule.m_cachedBounds))
+						{
+							s_visibleCapsules.Add(capsule);
+						}
+					}
+					Profiler.EndSample();
+				}
+				else
+				{
+					s_visibleCapsules.AddRange(instances);
+				}
+
+				if (sort)
+				{
+					Profiler.BeginSample("Capsule Occlusion Sorting");
+					Vector3 cameraPosition2 = cameraPosition * 2;
+					count = s_visibleCapsules.Count;
+					for (int i = 0; i < count; i++)
+					{
+						OcclusionCapsule capsule = s_visibleCapsules[i];
+						capsule.m_sortKey = (cameraPosition2 - (capsule.m_cachedPoint1 + capsule.m_cachedPoint2)).sqrMagnitude;
+					}
+					s_visibleCapsules.Sort((a, b) => a.m_sortKey.CompareTo(b.m_sortKey));
+					Profiler.EndSample();
+				}
+
+				s_visibleCapsuleCount = 0;
+
+				Profiler.BeginSample("Capsule Occlusion Data");
 				count = s_visibleCapsules.Count;
-				for (int i = 0; i < count; i++)
+				int minMaxCount = Mathf.Min(maxCount, MAX_CAPSULE_COUNT);
+				for (int i = 0; i < count && s_visibleCapsuleCount < minMaxCount; i++)
 				{
 					OcclusionCapsule capsule = s_visibleCapsules[i];
-					capsule.m_sortKey = (cameraPosition2 - (capsule.m_cachedPoint1 + capsule.m_cachedPoint2)).sqrMagnitude;
+					Vector4 param1 = capsule.m_cachedPoint1;
+					param1.w = capsule.radius;
+					Vector4 param2 = capsule.m_cachedPoint2;
+					param2.w = capsule.radius * rangeMultiplier;
+					// Note that we omit this for performance. Matrices are calculated on the fly in the vertex shader instead.
+					//s_matrices[s_visibleCapsuleCount] = Matrix4x4.TRS(capsule.transform.position, capsule.transform.rotation, Vector3.one);
+					s_capsuleParams1[s_visibleCapsuleCount] = param1;
+					s_capsuleParams2[s_visibleCapsuleCount] = param2;
+
+					s_visibleCapsuleCount++;
 				}
-				s_visibleCapsules.Sort((a, b) => a.m_sortKey.CompareTo(b.m_sortKey));
 				Profiler.EndSample();
 			}
-
-			s_visibleCapsuleCount = 0;
-
-			Profiler.BeginSample("Capsule Occlusion Data");
-			count = s_visibleCapsules.Count;
-			int minMaxCount = Mathf.Min(maxCount, MAX_CAPSULE_COUNT);
-			for (int i = 0; i < count && s_visibleCapsuleCount < minMaxCount; i++)
-			{
-				OcclusionCapsule capsule = s_visibleCapsules[i];
-				Vector4 param1 = capsule.m_cachedPoint1;
-				param1.w = capsule.radius;
-				Vector4 param2 = capsule.m_cachedPoint2;
-				param2.w = capsule.radius * rangeMultiplier;
-				// Note that we omit this for performance. Matrices are calculated on the fly in the vertex shader instead.
-				//s_matrices[s_visibleCapsuleCount] = Matrix4x4.TRS(capsule.transform.position, capsule.transform.rotation, Vector3.one);
-				s_capsuleParams1[s_visibleCapsuleCount] = param1;
-				s_capsuleParams2[s_visibleCapsuleCount] = param2;
-
-				s_visibleCapsuleCount++;
-			}
-			Profiler.EndSample();
 
 			Shader.SetGlobalVectorArray(ShaderIDs.CapsuleParams1, s_capsuleParams1);
 			Shader.SetGlobalVectorArray(ShaderIDs.CapsuleParams2, s_capsuleParams2);
@@ -109,6 +196,103 @@ namespace CapsuleOcclusion
 		public static void DrawCapsules(CommandBuffer cmd, Mesh mesh, int subMesh, Material material, int shaderPass)
 		{
 			cmd.DrawMeshInstanced(mesh, subMesh, material, shaderPass, s_matrices, s_visibleCapsuleCount);
+		}
+
+		private struct SortData : System.IComparable<SortData>
+		{
+			public int index;
+			public float sortKey;
+			public int CompareTo(SortData other) => sortKey.CompareTo(other.sortKey);
+		}
+
+		[BurstCompile]
+		private static bool TestPlanesAABB(ref NativeArray<Plane> planes, ref float3 boundsCenter, ref float3 boundsSize)
+		{
+			for (int i = 0; i < planes.Length; i++)
+			{
+				Plane plane = planes[i];
+				float3 normal_sign = math.sign(plane.normal);
+				float3 test_point = boundsCenter + (boundsSize * 0.5f * normal_sign);
+
+				float dot = math.dot(test_point, plane.normal);
+				if (dot + plane.distance < 0)
+					return false;
+			}
+
+			return true;
+		}
+
+		[BurstCompile]
+		private struct SortKeyJob : IJobParallelFor
+		{
+			[NativeDisableParallelForRestriction]
+			public NativeArray<SortData> sortdata;
+			[NativeDisableParallelForRestriction]
+			public NativeArray<Plane> frustum;
+			public float3 cameraPosition;
+			public float rangeMultiplier;
+
+			public NativeArray<float3> point1;
+			public NativeArray<float3> point2;
+			public NativeArray<float> radius;
+
+			public void Execute(int i)
+			{
+				float3 _point1 = point1[i];
+				float3 _point2 = point2[i];
+				float _radius = radius[i];
+				float radiusSum = _radius + _radius * rangeMultiplier;
+				float3 min = math.min(_point1, _point2) - radiusSum;
+				float3 max = math.max(_point1, _point2) + radiusSum;
+				float3 boundsCenter = (min + max) * 0.5f;
+				float3 boundsSize = (max - min) * 0.5f;
+
+				SortData data = sortdata[i];
+				if (TestPlanesAABB(ref frustum, ref boundsCenter, ref boundsSize))
+				{
+					data.sortKey = math.distance(boundsCenter, cameraPosition) + math.EPSILON;
+				}
+				else
+				{
+					data.sortKey = float.PositiveInfinity;
+				}
+				sortdata[i] = data;
+			}
+		}
+
+		[BurstCompile]
+		private struct CacheJob : IJobParallelFor
+		{
+			public float rangeMultiplier;
+			public NativeArray<float> size;
+			public NativeArray<Matrix4x4> localToWorld;
+			public NativeArray<float3> point1;
+			public NativeArray<float3> point2;
+
+			public void Execute(int i)
+			{
+				float _size = size[i];
+				Matrix4x4 m = localToWorld[i];
+				point1[i] = m.MultiplyPoint(new Vector3(0, 0, -_size * 0.5f));
+				point2[i] = m.MultiplyPoint(new Vector3(0, 0, _size * 0.5f));
+			}
+		}
+
+		[BurstCompile]
+		private static void SortCapsules(ref NativeArray<SortData> sortData, ref NativeArray<Plane> frustum, ref float3 cameraPosition, ref float rangeMultiplier, ref NativeArray<float3> point1, ref NativeArray<float3> point2, ref NativeArray<float> radius)
+		{
+			SortKeyJob sortKeyJob = new SortKeyJob()
+			{
+				sortdata = sortData,
+				frustum = frustum,
+				cameraPosition = cameraPosition,
+				rangeMultiplier = rangeMultiplier,
+				point1 = point1,
+				point2 = point2,
+				radius = radius
+			};
+			sortKeyJob.Schedule(sortData.Length, 1).Complete();
+			sortData.Sort();
 		}
 
 		private static void CacheDataForCamera(Camera camera, float rangeMultiplier)
@@ -139,12 +323,15 @@ namespace CapsuleOcclusion
 
 		private void OnEnable()
 		{
+			m_cachedTransform = transform;
 			instances.Add(this);
+			instanceTransforms.Add(transform);
 		}
 
 		private void OnDisable()
 		{
 			instances.Remove(this);
+			instanceTransforms.Remove(transform);
 		}
 
 		private void OnDrawGizmosSelected()
@@ -168,14 +355,6 @@ namespace CapsuleOcclusion
 			Gizmos.DrawLine(point1 + B * radius, point2 + B * radius);
 			Gizmos.DrawLine(point1 - T * radius, point2 - T * radius);
 			Gizmos.DrawLine(point1 + T * radius, point2 + T * radius);
-		}
-
-		public void DrawBoundsGizmo()
-		{
-			Gizmos.color = new Color(1, 0, 0, 0.1f);
-			Gizmos.DrawCube(m_cachedBounds.center, m_cachedBounds.size);
-			Gizmos.color = new Color(1, 0, 0, 1);
-			Gizmos.DrawWireCube(m_cachedBounds.center, m_cachedBounds.size);
 		}
 	}
 }

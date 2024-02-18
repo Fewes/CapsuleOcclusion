@@ -1,11 +1,16 @@
 {
   "name": "se.fewes.capsuleocclusion",
   "displayName": "Capsule Occlusion",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": {
     "name": "Felix Westin",
     "url": "https://fewes.se/"
   },
   "unity": "2021.3",
-  "description": "Clustered capsule occlusion implementation."
+  "description": "Clustered capsule occlusion implementation.",
+  "dependencies": {
+    "com.unity.collections": "2.1.4",
+    "com.unity.burst": "1.8.4",
+    "com.unity.mathematics": "1.2.1"
+  }
 }
