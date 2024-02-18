@@ -39,6 +39,8 @@ namespace CapsuleOcclusion
 		public bool cullCapsules = true;
 		[Tooltip("Sort capsules by distance from camera. This ensures capsules closer to the camera are prioritized.")]
 		public bool sortCapsules = true;
+		[Tooltip("Use Burst-compiled code path for culling and sorting.")]
+		public bool burst = true;
 
 		[Space(10)]
 
@@ -48,10 +50,6 @@ namespace CapsuleOcclusion
 		public bool conservativeRasterization = true;
 		[Tooltip("Can be used to toggle cluster updates on/off for testing purposes.")]
 		public bool updateClusters = true;
-
-		[Space(10)]
-
-		public bool burst = true;
 
 		[Space(10)]
 

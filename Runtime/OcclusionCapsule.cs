@@ -59,6 +59,7 @@ namespace CapsuleOcclusion
 				NativeArray<float> radius = new NativeArray<float>(instanceCount, Allocator.TempJob);
 				NativeArray<float3> point1 = new NativeArray<float3>(instanceCount, Allocator.TempJob);
 				NativeArray<float3> point2 = new NativeArray<float3>(instanceCount, Allocator.TempJob);
+				Profiler.BeginSample("Write NativeArray (Instance data)");
 				for (int i = 0; i < instanceCount; i++)
 				{
 					var capsule = instances[i];
@@ -66,6 +67,7 @@ namespace CapsuleOcclusion
 					size[i] = capsule.size;
 					radius[i] = capsule.radius;
 				}
+				Profiler.EndSample();
 				CacheJob cacheJob = new CacheJob()
 				{
 					rangeMultiplier = rangeMultiplier,
@@ -84,6 +86,7 @@ namespace CapsuleOcclusion
 				}
 
 				NativeArray<SortData> sortData = new NativeArray<SortData>(instances.Count, Allocator.TempJob);
+				Profiler.BeginSample("Write NativeArray (Sort data)");
 				for (int i = 0; i < instances.Count; i++)
 				{
 					OcclusionCapsule capsule = instances[i];
@@ -93,7 +96,8 @@ namespace CapsuleOcclusion
 						sortKey = -1
 					};
 				}
-				SortCapsules(ref sortData, ref frustum, ref cameraPosition, ref rangeMultiplier, ref point1, ref point2, ref radius);
+				Profiler.EndSample();
+				SortCapsules(ref sortData, in frustum, in cameraPosition, in rangeMultiplier, in point1, in point2, in radius);
 
 				s_visibleCapsuleCount = 0;
 				int minMaxCount = Mathf.Min(maxCount, MAX_CAPSULE_COUNT);
@@ -108,6 +112,7 @@ namespace CapsuleOcclusion
 					{
 						int j = d.index;
 						float _radius = radius[j];
+						
 						float4 param1 = new float4(point1[j], _radius);
 						float4 param2 = new float4(point2[j], _radius * rangeMultiplier);
 						// Note that we omit this for performance. Matrices are calculated on the fly in the vertex shader instead.
@@ -206,7 +211,7 @@ namespace CapsuleOcclusion
 		}
 
 		[BurstCompile]
-		private static bool TestPlanesAABB(ref NativeArray<Plane> planes, ref float3 boundsCenter, ref float3 boundsSize)
+		private static bool TestPlanesAABB(in NativeArray<Plane> planes, in float3 boundsCenter, in float3 boundsSize)
 		{
 			for (int i = 0; i < planes.Length; i++)
 			{
@@ -248,7 +253,7 @@ namespace CapsuleOcclusion
 				float3 boundsSize = (max - min) * 0.5f;
 
 				SortData data = sortdata[i];
-				if (TestPlanesAABB(ref frustum, ref boundsCenter, ref boundsSize))
+				if (TestPlanesAABB(in frustum, in boundsCenter, in boundsSize))
 				{
 					data.sortKey = math.distance(boundsCenter, cameraPosition) + math.EPSILON;
 				}
@@ -279,7 +284,7 @@ namespace CapsuleOcclusion
 		}
 
 		[BurstCompile]
-		private static void SortCapsules(ref NativeArray<SortData> sortData, ref NativeArray<Plane> frustum, ref float3 cameraPosition, ref float rangeMultiplier, ref NativeArray<float3> point1, ref NativeArray<float3> point2, ref NativeArray<float> radius)
+		private static void SortCapsules(ref NativeArray<SortData> sortData, in NativeArray<Plane> frustum, in float3 cameraPosition, in float rangeMultiplier, in NativeArray<float3> point1, in NativeArray<float3> point2, in NativeArray<float> radius)
 		{
 			SortKeyJob sortKeyJob = new SortKeyJob()
 			{
