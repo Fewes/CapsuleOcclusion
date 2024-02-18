@@ -17,7 +17,6 @@ namespace CapsuleOcclusion
 		public const int MAX_CAPSULE_COUNT = 512;
 
 		public static List<OcclusionCapsule> instances = new List<OcclusionCapsule>();
-		public static List<Transform> instanceTransforms = new List<Transform>();
 		public static int visibleCapsuleCount => s_visibleCapsuleCount;
 
 		[Min(0)]
@@ -45,6 +44,7 @@ namespace CapsuleOcclusion
 		public static void UpdateCapsuleDataForCamera(Camera camera, int maxCount, float rangeMultiplier, bool cull, bool sort, bool burst)
 		{
 			float3 cameraPosition = camera.transform.position;
+			GeometryUtility.CalculateFrustumPlanes(camera, s_frustumPlanes);
 
 			int count;
 
@@ -79,7 +79,7 @@ namespace CapsuleOcclusion
 				cacheJob.Schedule(instanceCount, 1).Complete();
 
 				NativeArray<Plane> frustum = new NativeArray<Plane>(6, Allocator.TempJob);
-				GeometryUtility.CalculateFrustumPlanes(camera, s_frustumPlanes);
+				
 				for (int i = 0; i < 6; i++)
 				{
 					frustum[i] = s_frustumPlanes[i];
@@ -140,7 +140,6 @@ namespace CapsuleOcclusion
 				if (cull)
 				{
 					Profiler.BeginSample("Capsule Occlusion Culling");
-					GeometryUtility.CalculateFrustumPlanes(camera, s_frustumPlanes);
 					count = instances.Count;
 					for (int i = 0; i < count; i++)
 					{
@@ -330,13 +329,11 @@ namespace CapsuleOcclusion
 		{
 			m_cachedTransform = transform;
 			instances.Add(this);
-			instanceTransforms.Add(transform);
 		}
 
 		private void OnDisable()
 		{
 			instances.Remove(this);
-			instanceTransforms.Remove(transform);
 		}
 
 		private void OnDrawGizmosSelected()
